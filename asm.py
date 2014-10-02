@@ -27,50 +27,42 @@ def getReg(str):
 
 
 def toArr(str):
-	arr = []
-	for i in str:
-		arr.append(i)
-	return arr
+	return map(lambda x:x, str)
 
 def transform(original):
 	notTable = {'0' : '1', '1' : '0'}
 	length = len(original)
 	flag = False
-	new = ''.zfill(length)
 	original = toArr(original)
-	new = toArr(original)
+	new = toArr(''.zfill(length))
+
 	for i in range(length):
-		if flag:
-			new[length - 1 - i] = notTable[original[length - 1- i]]
-		else:
-			new[length - 1 - i] = original[length - 1- i]
-		if (not flag) and original[length - 1 - i] == '1':
+		back = length - 1 - i
+		origBit = original[back]
+
+		new[back] = notTable[origBit] if flag else origBit
+		if (not flag) and origBit == '1':
 			flag = True
 			continue
+
 	return ''.join(new)
 
 def get2com(str, len):
+	# Get 2's complament in binary form for signed hexadecimal
 	# Input: 'x1' or 'x-3'
 	# Output (len=5): '00001' or '11101'
-	if str[1] == '-':
-		print str
-		binary = hex2bin(str[2:], len);
-		binary = transform(binary);
-		return binary
-	else:
-		binary = hex2bin(str[1:], len);
-		return binary
+	return transform(hex2bin(str[2:], len)) if str[1] == '-' else hex2bin(str[1:], len)
 
 def getOffset(string, LC, len):
 	if string[0] == 'x':
 		offset = string
 	else:
 		offset = symbolTable[string] - LC - 1
-		if offset >= 0:
-			offset = hex(offset)[1:]
-		else:
-			offset = 'x-' + str(hex(-offset))[2:]
+		offset = hex(offset)[1:] if offset >= 0 else 'x-' + str(hex(-offset))[2:]
 	return get2com(offset, len)
+
+def dec2bin(val, len):
+	return bin(val)[2:].zfill(len)
 
 def processInstruction(array, LineCounter):
 	commentStart = -1
@@ -84,28 +76,21 @@ def processInstruction(array, LineCounter):
 
 	if array[0] == 'LD':
 
-		DR = bin(int(array[1][1]))[2:].zfill(3)
+		DR = getReg(array[1])
 		PCoffset = getOffset(array[2], LineCounter, 9)
-
 		return '0010' + DR + PCoffset
 
 	elif array[0] == 'ADD':
 
 		DR  = getReg(array[1])
 		SR1 = getReg(array[2])
-
-		if array[3][0] == 'R': # Register Mode
-			SR2 = getReg(array[3])
-			return '0001' + DR + SR1 + '000' + SR2
-		else: # Immediate Mode
-			IMM = get2com(array[3], 5)
-			return '0001' + DR + SR1 + '1' + IMM;
+		tail = '000' + getReg(array[3]) if array[3][0] == 'R' else '1' + get2com(array[3], 5)
+		return '0001' + DR + SR1 + tail
 
 	elif array[0] == 'ST':
 
 		SR = getReg(array[1])
 		PCoffset = getOffset(array[2], LineCounter, 9)
-
 		return '0011' + SR + PCoffset
 
 	elif array[0] == 'HALT':
@@ -116,44 +101,30 @@ def processInstruction(array, LineCounter):
 
 		DR  = getReg(array[1])
 		SR1 = getReg(array[2])
-
-		if array[3][0] == 'R': # Register Mode
-			SR2 = getReg(array[3])
-			return '0101' + DR + SR1 + '000' + SR2
-		else: # Immediate Mode
-			IMM = get2com(array[3], 5)
-			return '0101' + DR + SR1 + '1' + IMM;
+		tail = '000' + getReg(array[3]) if array[3][0] == 'R' else '1' + get2com(array[3], 5)
+		return '0001' + DR + SR1 + tail
 
 	elif array[0] == 'LEA':
 
 		DR = getReg(array[1])
 		PCoffset = getOffset(array[2], LineCounter, 9)
-
 		return '1110' + DR + PCoffset
 
 	elif array[0][:2] == 'BR':
-		conditions = []
-		for i in array[0][2:]:
-			conditions.append(i)
-
+		conditions = toArr(array[0][2:])
 		nzp = 0
-		if 'n' in conditions:
-			nzp += 4
-		if 'z' in conditions:
-			nzp += 2
-		if 'p' in conditions:
-			nzp += 1
-		nzp = bin(nzp)[2:].zfill(3)
+		dic = { 'n' : 4, 'z' : 2, 'p' : 1}
+		for ch in conditions:
+			nzp += dic[ch]
 
+		nzp = dec2bin(nzp, 3)
 		PCoffset = getOffset(array[1], LineCounter, 9)
-
 		return '0000' + nzp + PCoffset
 
 	elif array[0] == 'LDR':
 		DR = getReg(array[1])
 		BR = getReg(array[2])
 		PCoffset = getOffset(array[3], LineCounter, 6)
-
 		return '0110' + DR + BR + PCoffset;
 
 	else:
@@ -176,7 +147,7 @@ if startLineNumber >= endLineNumber:
 startPosition = content[startLineNumber].split()[1]
 
 LineCounter = int(startPosition[1:],16)
-header = bin(LineCounter)[2:].zfill(16)
+headLine = bin(LineCounter)[2:].zfill(16)
 
 content = content[startLineNumber+1 : endLineNumber]
 symbolTable = {}
@@ -190,9 +161,8 @@ for line in content:
 	if not line[0] in instructions:
 		if not line[0] in directives:
 			symbolTable[line[0]] = LineCounter
-			line = processDirective(line[1:], LineCounter)
-		else:
-			line = processDirective(line, LineCounter)
+			line = line[1:]
+		line = processDirective(line, LineCounter)
 
 
 	print hex(LineCounter)[1:], ':\t\t', line
@@ -216,14 +186,7 @@ for line in content:
 	newContent.append(line)
 	LineCounter += 1
 
-newContent.insert(0, header)
+newContent.insert(0, headLine)
 
 print '-----------RESULT------------'
 print '\n'.join(newContent)
-
-
-
-
-
-
-
