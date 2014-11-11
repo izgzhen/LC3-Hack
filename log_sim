@@ -1,0 +1,15 @@
+LC-3 Simulator
+
+Basic Component:
+* Memory
+* ALU
+* Clock
+* Control Signal
+
+How to implement?
+* Take full adventage of class
+* Construct standard parts first
+* Use interface similar to data path sheet
+
+
+Dev Note 1:
