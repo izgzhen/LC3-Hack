@@ -13,3 +13,5 @@ How to implement?
 
 
 Dev Note 1:
+I have implement a bunch of "basic ideas" of LC3 architecture. But I haven't fully used the basic property of Python's OOP yet.
+I will try to implement the idea of "buffer", "bus" and "clock" next time
