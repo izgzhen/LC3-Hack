@@ -2,7 +2,6 @@ import inst
 import direc
 import info
 import helper
-import assembler
 
 class assembler(object):
 	def __init__(self, src):
