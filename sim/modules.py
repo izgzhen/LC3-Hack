@@ -24,7 +24,7 @@ class Memory(object):
 			self.set(self.MAR, self.MDR)
 		elif self.LDE:
 			self.MDR = self.at(self.MAR)
-
+			
 class Bus(object):
 	# bus is a shared object, with a internal 16-bit width status representing voltage
 	def __init__(self):
@@ -92,8 +92,8 @@ class Clock(object):
 			self.cycles += 1
 
 class Driver(object):
-	def connect(self, device):
-		self.deviceSync = device.sync # Method Address
+	def connect(self, device, methodName):
+		self.deviceSync = device.__getattribute__(methodName) # Method Address
 
 	def write(self, data):
 		if transformer.toVal(data) > 0:

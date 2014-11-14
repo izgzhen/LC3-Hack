@@ -1,5 +1,6 @@
 import transformer
 import modules
+import fsm
 
 class Computer(object):
 	def __init__(self):
@@ -13,6 +14,24 @@ class Computer(object):
 		self.regs = [nullWord] * regNum
 		self.N = self.Z = self.P = '0' # Condition Code
 
+		self.fsm = fsm.FSM({
+			18 : { 'default' : 33	},
+			33 : { 'default' : 35 },
+			35 : { 'default' : 32 },
+			32 : { 'default' : 'operate' },
+			'operate' : { 'default' : 'store' },
+			'store' : { 'default' : 18 }
+			}, initialState = 18, hasOutput = False)
+
+		self.actionMux = {
+			18 : self.fetchInst,
+			33 : self.mem.sync,
+			35 : self.loadIR,
+			32 : self.decode,
+			'operate' : self.operate,
+			'store' : self.store
+		}
+
 		self.ALU = {
 		'ADD' : lambda x, y : x + y,
 		'AND' : lambda x, y : x & y,
@@ -24,30 +43,50 @@ class Computer(object):
 		self.buf = modules.Buffer(16)
 		self.clk = modules.Clock()
 		self.dri = modules.Driver()
+		self.dri2 = modules.Driver()
 
 		# connect
 		self.buf.connect(self.b, 'o')
 		self.buf.connect(self.w, 'i')
 		self.clk.include(self.dri)
-		self.dri.connect(self.buf)
+		self.dri.connect(self.buf, 'sync')
+		self.clk.include(self.dri2)
+		self.dri2.connect(self.fsm, 'step')
 
 	def run(self):
-		# self.mem.sync()
-		# while self.PC <= 10:
-			# self.IR = self.fetchInst()
-			# print self.PC, ':', self.IR
-			# self.decode()
+		while self.PC <= 10:
+			# self.fsm.step()
+			print 'R1', self.regs[1]
+			self.actionMux[self.fsm.state]();
+			self.clk.step()
 
-		# config
-		self.buf.WE = True
-		print self.b.at(0, 15)
-		self.w.write('1'*16)
-		print self.b.at(0, 15)
-		self.clk.step()
-		print self.b.at(0, 15)
+	def fetchInst(self):
+		# self.PC += 1
+		# return self.readMem(self.PC - 1)
+		self.mem.MAR = self.PC
+		self.mem.LDE = True
+		self.PC += 1
+
+	def loadIR(self):
+		self.mem.LDE = False
+		self.IR = self.mem.MDR
+
+		# For Debug
+		self.IR = '0001' + '1'*12
+
+	def decode(self):
+		# for debug
+		opcodes = {
+			'0001' : 'ADD',
+			'0101' : 'AND',
+			'1001' : 'NOT'
+		}
+		self.opMux = opcodes[self.IR[0:4]]
+		self.operands = ['0001', '0010']
+		self.dest = ['001', 'r']
 
 	def evalAddr(offset):
-		return PC + transformer.toVal(offset)
+		return self.PC + transformer.toVal(offset)
 
 	def fetchOperand(addr, type):
 		if type == 'r': # register
@@ -55,21 +94,21 @@ class Computer(object):
 		elif type == 'm':
 			return self.mem[addr]
 
-	def execute(op, operands):
-		if len(operands) == 2:
-			return bin(self.ALU[op](transformer.toVal(operands[0]) + transformer.toVal(operands[1])))[2:]
-		elif len(operands) == 1:
-			return bin(self.ALU[op](transformer.toVal(operands[0])))
+	def operate(self):
+		op = self.opMux
 
-	def store(dest, data, type):
-		if type == 'r':
-			self.regs[transformer.toVal(dest)] = data
+		if len(self.operands) == 2:
+			self.result = bin(self.ALU[op](transformer.toVal(self.operands[0]), transformer.toVal(self.operands[1])))[2:].zfill(16)
+		elif len(self.operands) == 1:
+			self.result = bin(self.ALU[op](transformer.toVal(self.operands[0])))[2:].zfill(16)
+
+	def store(self):
+		dest = self.dest[0]
+		type = self.dest[1]
+		if  type == 'r':
+			self.regs[transformer.toVal(dest)] = self.result
 		elif type == 'm':
-			self.writeMem(dest, data)
-
-	def fetchInst(self):
-		self.PC += 1
-		return self.readMem(self.PC - 1) # olf PC
+			self.writeMem(dest, self.result)
 
 	def readMem(self, addr):
 		self.mem.MAR = addr
