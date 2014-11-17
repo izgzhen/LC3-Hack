@@ -12,10 +12,10 @@ class Computer(object):
 		self.PC  = 0
 		self.IR  = nullWord
 		self.regs = [nullWord] * regNum
-		self.N = self.Z = self.P = '0' # Condition Code
+		self.N = self.Z = self.P = '0'
 
 		self.fsm = fsm.FSM({
-			18 : { 'default' : 33	},
+			18 : { 'default' : 33 },
 			33 : { 'default' : 35 },
 			35 : { 'default' : 32 },
 			32 : { 'default' : 'operate' },
@@ -38,31 +38,14 @@ class Computer(object):
 		'NOT' : lambda x 	: ~ x
 	  	}
 
-		self.b = modules.Bus()
-		self.w = modules.Wires(16)
-		self.buf = modules.Buffer(16)
 		self.clk = modules.Clock()
-		self.dri = modules.Driver()
-		self.dri2 = modules.Driver()
-
-		# connect
-		self.buf.connect(self.b, 'o')
-		self.buf.connect(self.w, 'i')
-		self.clk.include(self.dri)
-		self.dri.connect(self.buf, 'sync')
-		self.clk.include(self.dri2)
-		self.dri2.connect(self.fsm, 'step')
 
 	def run(self):
 		while self.PC <= 10:
-			# self.fsm.step()
 			print 'R1', self.regs[1]
-			self.actionMux[self.fsm.state]();
-			self.clk.step()
+			self.actionMux[self.fsm.state]()
 
 	def fetchInst(self):
-		# self.PC += 1
-		# return self.readMem(self.PC - 1)
 		self.mem.MAR = self.PC
 		self.mem.LDE = True
 		self.PC += 1
@@ -75,12 +58,13 @@ class Computer(object):
 		self.IR = '0001' + '1'*12
 
 	def decode(self):
-		# for debug
+		# For Debug
 		opcodes = {
 			'0001' : 'ADD',
 			'0101' : 'AND',
 			'1001' : 'NOT'
 		}
+
 		self.opMux = opcodes[self.IR[0:4]]
 		self.operands = ['0001', '0010']
 		self.dest = ['001', 'r']
@@ -89,7 +73,7 @@ class Computer(object):
 		return self.PC + transformer.toVal(offset)
 
 	def fetchOperand(addr, type):
-		if type == 'r': # register
+		if type == 'r':
 			return self.regs[addr]
 		elif type == 'm':
 			return self.mem[addr]

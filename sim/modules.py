@@ -1,10 +1,7 @@
 import transformer
 
 class Memory(object):
-	# I need access control here
-	def __init__(self):
-		wordLength = 16
-		addressability = pow(2, 16)
+	def __init__(self, wordLength, addressability):
 		nullWord = '0' * wordLength
 
 		self.space = [nullWord] * addressability
@@ -26,78 +23,49 @@ class Memory(object):
 			self.MDR = self.at(self.MAR)
 			
 class Bus(object):
-	# bus is a shared object, with a internal 16-bit width status representing voltage
 	def __init__(self):
-		wordLength = 16
-		nullWord = '0' * 16
-		self.data = nullWord
+		self.outPool = []
+		self.wordLength = 16
 
-	def at(self, start, end):
-		return self.data[start:end]
-
-	def write(self, data):
-		assert len(data) == 16
-		self.data = data
-
-class Wires(object):
-	def __init__(self, wordLength):
-		self.data = '0' * wordLength
-		self.hasOutput = False
+	def connect(self, device):
+		self.outPool.append(device.write)
 
 	def write(self, data):
-		self.data = data
-		if self.hasOutput:
-			self.output.write(self.data)
+		assert len(data) == self.wordLength
+		for output in self.outPool:
+			output(data)
 
-	def connectOut(self, device):
-		self.output = device
-		self.hasOutput = True
-
+class Wire(object):
+	def connect(self, device):
+		self.write = device.write
 
 class Buffer(object):
-	def __init__(self, wordLength):
-		self.data = '0' * wordLength
+	def __init__(self, length):
+		self.data = '0' * length
 		self.hasOutput = False
-		self.hasInput = False
-		self.WE = False # Write Enable
+
+	def connect(self, device):
+		self.push = device.write 
 
 	def write(self, data):
-		if self.WE:
-			self.data = data
+		self.data = data
 
 	def sync(self):
 		if self.hasOutput:
-			self.output.write(self.data) # Incoming data synced
-
-	def connect(self, wires, type):
-		if type == 'i':
-			wires.connectOut(self)
-			self.hasInput = True
-		elif type == 'o':
-			self.output = wires
-			self.hasOutput = True
+			self.push(self.data)
 
 class Clock(object):
 	def __init__(self):
 		self.drivers = []
 		self.cycles = 0
 
-	def include(self, wire):
-		# Include wire as a driver
+	def connect(self, wire):
 		self.drivers.append(wire)
 
 	def step(self):
-		for wire in self.drivers:
-			wire.write('1')
+		for driver in self.drivers:
+			driver.write('1')
 			self.cycles += 1
-
-class Driver(object):
-	def connect(self, device, methodName):
-		self.deviceSync = device.__getattribute__(methodName) # Method Address
-
-	def write(self, data):
-		if transformer.toVal(data) > 0:
-			self.deviceSync()
 
 def decoder(inst):
 	dispatch = {

@@ -2,13 +2,13 @@ class FSM(object):
 	def __init__(self, LUT, initialState, hasOutput = True):
 		self.state = initialState
 		self.LUT = LUT
-		self.step = self.stepOut if hasOutput else self.stepNonOut
+		self.sync = self.syncOut if hasOutput else self.syncNonOut
 
-	def stepOut(self, inSignal = 'default'):
+	def syncOut(self, inSignal = 'default'):
 		[self.state, outSignal] = self.transform(self.state, inSignal)
 		return outSignal
 
-	def stepNonOut(self, inSignal = 'default'):
+	def syncNonOut(self, inSignal = 'default'):
 		self.state = self.transform(self.state, inSignal)
 		print self.state
 
