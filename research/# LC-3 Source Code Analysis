@@ -1,0 +1,145 @@
+# LC-3 Source Code Analysis
+
+## Object
+### Object One 
+1. Learn how the little computer is simulated
+2. Learn about other feature's existence in a good simulator
+3. A better simulator for learning use
+
+## Part I:
+### Analysis of LC-3 Simulator
+In my opinion, the LC-3 simulator is constructed from mainly three components:
+
+1. LC-3 Core : Simulate the function of Little Computer
+2. Tools : Dump, Print, Debug ...
+3. Interface : CLI, GUI
+
+The most important one is the LC-3 Core, but it is not something like:
+
+	class LC3 {
+		RegType RegFile[8];
+		// ...
+	};
+
+But something scattered around, and in C language, with intense use of macros, logic operators, enum, and human-unfriendly variable names.
+
+However, if you like to read them, they are mostly in:
+
+* `lc3.def` -- Define the ISA
+* `lc3sim.c` -- The simulator
+* `lc3sim.h` -- The must-to-read if you want to know what the former two are talking about
+
+I will give a framework first, then analyze the some excerpt next.
+
+### Framework of the core
+There are two things to "simulate" in LC3, the CPU and the memory.
+
+#### CPU
+The CPU are mainly registers + ALU + Control Unit, of which the functions are familiar to you. But how to implement them?
+
+1. Registers: Use variables to hold there value
+2. ALU: Use the buuilt-in logic operators of your programming language
+3. CU: Express them just in a imperative way in your language
+
+#### Memory (as well as the mapped I/O ports)
+1. A large memory pool
+2. Some interface to support read and write
+3. Some logic to map I/O to other APIs
+
+### Implementation from Unix version source code
+#### CPU
+##### Registers
+
+	static int lc3_register[NUM_REGS];
+	#define REG(i) lc3_register[(i)]
+
+	typedef enum reg_num_t reg_num_t;
+	enum reg_num_t {
+		R_R0 = 0, R_R1, R_R2, R_R3, R_R4, R_R5, R_R6, R_R7,
+		R_PC, R_IR, R_PSR,
+		NUM_REGS
+	};
+
+##### ALU and Control -- how to "run" the instructions?
+
+    REG (R_IR) = read_memory (REG (R_PC));
+    REG (R_PC) = (REG (R_PC) + 1) & 0xFFFF;
+
+    #define ADD_FLAGS(value) (last_flags |= (value))
+	#define DEF_INST(name,format,mask,match,flags,code) \
+	    if ((REG (R_IR) & (mask)) == (match)) {         \
+		last_flags = (flags);                       \
+		code;                                       \
+		goto executed;                              \
+	    }
+	#define DEF_P_OP(name,format,mask,match)
+	#include "lc3.def"
+
+	DEF_INST (ADD, FMT_RRR, 0xF038, 0x1000, FLG_NONE, {
+	    REG (I_DR) = (REG (I_SR1) + REG (I_SR2)) & 0xFFFF;
+	    SET_CC ();
+	}); 
+
+	DEF_INST (JSRR, FMT_R, 0xFE3F, 0x4000, FLG_SUBROUTINE, {
+	    int tmp = REG (I_BaseR);
+	    REG (R_R7) = REG (R_PC);
+	    REG (R_PC) = tmp;
+	});
+
+	DEF_P_OP (GETC,  FMT_, 0xFFFF, 0xF020);
+
+	DEF_INST (TRAP, FMT_V, 0xFF00, 0xF000, FLG_SUBROUTINE, {
+	    REG (R_R7) = REG (R_PC);
+	    REG (R_PC) = read_memory (I_vec8);
+	});
+
+#### Memory
+
+	static int lc3_memory[65536];
+
+	int read_memory (int addr)
+	void write_memory (int addr, int value)
+
+	int read_memory (int addr)
+	{
+	    switch (addr) {
+			case 0xFE00: /* KBSR */
+			case 0xFE02: /* KBDR */
+			case 0xFE04: /* DSR */
+			case 0xFE06: /* DDR */
+	    	case 0xFFFE: /* MCR */
+	    }
+	    return lc3_memory[addr]; // Important
+	}
+
+	void write_memory (int addr, int value)
+	{
+	    switch (addr) {
+			case 0xFE00: /* KBSR */
+			case 0xFE02: /* KBDR */
+			case 0xFE04: /* DSR */
+			case 0xFE06: /* DDR */
+	    }
+
+	    if (value != lc3_memory[addr])
+			lc3_memory[addr] = value;
+    }
+
+### Tools Set
+Why we needs them?
+
+1. We want to know/set the memory and registers status of the running computer
+2. We want to debug them, with operations like "step", "continue", "break"
+
+	static void print_register (int which);
+	static void dump_memory (int addr_s, int addr_e);
+	static void set_breakpoint (int addr);
+	static void cmd_next      (const unsigned char* args);
+
+### Interface
+1. Arguments with CLI
+2. Communications with GUI
+3. Better formating of the memory information, i.e. "disassembly"
+
+### A better scheme
+In my opinion, such a system should better be modeled in a OOP way, with more modular design and easy to read.

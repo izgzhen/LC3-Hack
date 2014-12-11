@@ -1,0 +1,8 @@
+
+// The Spec of DS Lab : Shortest Path
+
+-- Will your visualize it?
+-- No, it is stupid to visualize, I don't have more time to devote on any CPP graph library.
+
+-- What's the shinning point?
+-- Firmly based on the library I built. Read config file to initialize the map.
