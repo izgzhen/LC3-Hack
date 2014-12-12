@@ -36,6 +36,12 @@ class Number(object):
 	def int(self):
 		return int(self.data, 2)
 
+	def calculate(self, operator, operand):
+		return Number(min(self.size, operand.size), operator(int(self.data, 2), int(operand.data, 2)))
+
+	def ADD(self, operand):
+		return self.calculate(lambda x,y:x+y, operand)
+
 	def XOR(self, operand):
 		return Number(min(self.size, operand.size), int(self.data, 2) ^ int(operand.data, 2))
 
@@ -50,3 +56,12 @@ class Number(object):
 
 	def toSize(self, newSize):
 		return Number(newSize, 'b' + self.data)
+
+	def ZEX(self, newSize): # Zero Extends
+		return self.toSize(newSize)
+
+	def SEX(self, newSize): # Sign Extends
+		if newSize > self.size:
+			return Number(newSize, 'b' + self.data[0] * (newSize - self.size) + self.data)
+		else:
+			return self.toSize(newSize) # FIX ME: Still in doubt
