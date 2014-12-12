@@ -30,6 +30,13 @@ def chop(str, size, tail = '0'):
 
 	return arr
 
+def match(str1, str2):
+	assert(len(str1) == len(str2))
+	if (int(str1) & int(str2)) != 0:
+		return True
+	else:
+		return False
+
 #############################################
 
 def intCom(str):

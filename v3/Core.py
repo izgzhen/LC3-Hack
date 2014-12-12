@@ -8,7 +8,7 @@ class CPU(object):
 
 		self.gRegNum = 8
 		self.gRegs = [ Number(self.wordLength) ] * self.gRegNum
-		self.cRegs = { 'N' : Number(1), 'Z' : Number(1), 'P' : Number(1)}
+		self.cRegs = Number(3, 'b000')
 		self.IR = Number(self.wordLength)
 		self.PC = Number(self.addressibility)
 
@@ -16,13 +16,31 @@ class CPU(object):
 		self.readMem = mem.read
 
 		self.getOperands = {
-			'ADDr' : lambda inst : [ int(inst.data[4:7], 2), int(inst.data[7:10], 2), int(inst.data[13:16], 2) ],
-			'ADDimm' : lambda inst : [ int(inst.data[4:7], 2), int(inst.data[7:10], 2), inst.data[11:16]]
+			'ADDr' : ['R4-7', 'R7-10', 'R13-16'],
+			'ADDimm' : ['R4-7', 'R7-10', 'I11-16'],
+			'BR' : ['S4-7', 'O7-16'],
+			'LD' : ['R4-7', 'O7-16']
 		}
 
+	def match(self, pattern, inst):
+		rulesMatch = {
+			'R' : lambda segment : int(segment, 2), # Register
+			'O' : lambda segment : Number(9, 'b' + segment).SEX(self.wordLength), # Offset
+			'I' : lambda segment : Number(len(segment), 'b' + segment).SEX(self.wordLength), # Immediate Value
+			'S' : lambda segment : segment # return the segment itself
+		}
+		operands = []
+		for rule in pattern:
+			[start, end] = rule[1:].split('-')
+			operands.append(rulesMatch[rule[0]](inst.data[int(start):int(end)]))
+		return operands
+
 	def getOpcode(self, instruction):
-		# No lexer
-		# return self.opcodes[instruction.data[0:4]]
+		singleModeOpcode = {
+			'0000' : 'BR',
+			'0010' : 'LD'
+		}
+
 		opcode = instruction.data[0:4]
 		if opcode == '0001':
 			if instruction.data[10:13] == '000':
@@ -32,16 +50,30 @@ class CPU(object):
 			else:
 				raise StandardError("[CPU]: Error -- Wrong ADD instruction format")
 		else:
-			return 'ELSE'
+			return singleModeOpcode[opcode]
+
+	def LD(self, DR, offset):
+		SRC = self.PC.ADD(offset)
+		print "[CPU]: LD", DR, "<-", SRC.hex()
+		self.gRegs[DR] = self.readMem(SRC)
+		return True
+
+	def BR(self, nzp, offset):
+		if Tools.match(self.cRegs.data, nzp):
+			print "[CPU]: BR", offset.intCom()
+			self.PC = self.PC.ADD(offset)
+		return True
 
 	def ADDr(self, DR, SR1, SR2):
-		print "[CPU]: ADDr", DR, "=", SR1, "+", SR2
+		print "[CPU]: ADDr", DR, "<-", SR1, "+", SR2
 		self.gRegs[DR] = Number(self.wordLength, bin(self.gRegs[SR1].int() + self.gRegs[SR2].int())[1:])
+		self.setCC(DR)
 		return True
 
 	def ADDimm(self, DR, SR, Simm):
-		print "[CPU]: ADDimm", DR, "=", SR, "+", Tools.intCom(Number(len(Simm), 'b' + Simm).SEX(self.wordLength).data)
-		self.gRegs[DR] = self.gRegs[SR].ADD(Number(len(Simm), 'b' + Simm).SEX(self.wordLength))
+		print "[CPU]: ADDimm", DR, "<-", SR, "+", Tools.intCom(Simm.data)
+		self.gRegs[DR] = self.gRegs[SR].ADD(Simm)
+		self.setCC(DR)
 		return True
 
 	def step(self):
@@ -49,10 +81,21 @@ class CPU(object):
 		self.PC = self.PC.ADD(Number(self.wordLength, 1))
 		opcode = self.getOpcode(self.IR)
 		if opcode:
-			operands = self.getOperands[opcode](self.IR)
+			operands = self.match(self.getOperands[opcode], self.IR)
 			# print operands
 			if not apply(self.__getattribute__(opcode), operands):
 				print "[CPU]: ERROR step"
+
+	def setCC(self, index):
+		if self.readRegCom(index) > 0:
+			self.cRegs = Number(3, 'b001')
+		elif self.readRegCom(index) == 0:
+			self.cRegs = Number(3, 'b010')
+		else:
+			self.cRegs = Number(3, 'b100')
+
+	def readRegCom(self, index):
+		return Tools.intCom(self.gRegs[index].bin()[1:])
 
 class Memory(object):
 	def __init__(self):

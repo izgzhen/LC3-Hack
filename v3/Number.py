@@ -36,6 +36,9 @@ class Number(object):
 	def int(self):
 		return int(self.data, 2)
 
+	def intCom(self):
+		return Tools.intCom(self.data)
+
 	def calculate(self, operator, operand):
 		return Number(min(self.size, operand.size), operator(int(self.data, 2), int(operand.data, 2)))
 
