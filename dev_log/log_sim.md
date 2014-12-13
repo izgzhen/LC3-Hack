@@ -107,3 +107,10 @@ The running of the machine, the so-called "step" will just be the FSM. other stu
 The code is a messy now, combining both direct calling code and some premitive code. The problem is still how to design the interface.
 
 Maybe I should rewrite this simulator.
+
+# Dev Note 7
+I have rewritten the whole simulator.
+
+The mistake in the previous versions is the abstraction level. You should not simulator anything below the ISA level. So the "bus" and "wires" are stupid decisions.
+
+Current version, v0.31, would be much better, with proper abstraction level and a powerful data class `Number`

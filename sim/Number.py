@@ -43,16 +43,16 @@ class Number(object):
 		return Number(min(self.size, operand.size), operator(int(self.data, 2), int(operand.data, 2)))
 
 	def ADD(self, operand):
-		return self.calculate(lambda x,y:x+y, operand)
+		return self.calculate(lambda x, y : x + y, operand)
 
 	def XOR(self, operand):
-		return Number(min(self.size, operand.size), int(self.data, 2) ^ int(operand.data, 2))
+		return self.calculate(lambda x, y : x ^ y, operand)
 
 	def AND(self, operand):
-		return Number(min(self.size, operand.size), int(self.data, 2) & int(operand.data, 2))
+		return self.calculate(lambda x, y : x & y, operand)
 
 	def OR(self, operand):
-		return Number(min(self.size, operand.size), int(self.data, 2) | int(operand.data, 2))
+		return self.calculate(lambda x, y : x | y, operand)
 
 	def NOT(self):
 		return Number(self.size, 'b' + reduce(lambda s, x : s + ('1' if x == '0' else '0'), self.data, ''))
@@ -67,4 +67,4 @@ class Number(object):
 		if newSize > self.size:
 			return Number(newSize, 'b' + self.data[0] * (newSize - self.size) + self.data)
 		else:
-			return self.toSize(newSize) # FIX ME: Still in doubt
+			return self.toSize(newSize) # FIX ME: What will happen when SEX is actuall truncating?

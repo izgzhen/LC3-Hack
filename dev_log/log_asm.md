@@ -1,4 +1,4 @@
-Dev Note 1:
+# Dev Note 1:
 
 Now my goal in writing the LC-3 Hack would change a bit, since I found through the real code that this machine is very complex to build actually. So when An Hong said: build a assembler yourself, I can't really build a full-feature suite, which needs more than 5000 lines of code.
 
@@ -26,7 +26,7 @@ The simulator (In python)
 	* Supporting: ADD, AND, NOT, LD, ST 					-- Before December
 
 
-Dev Note 2:
+# Dev Note 2:
 
 Some issues in reconstucting:
 
@@ -37,11 +37,10 @@ The program has been divided into several modules and functions.
 
 Next step is to clean the code. I willl leave this tomorrow.
 
-Dev Note 3:
+# Dev Note 3:
 I found the parsing seems being filled with redundent code ... you should make it better
 
-Dev Note 4:
+# Dev Note 4:
 I have written some regex for hex, bin, dec in 'transformer.py', But I still don't know the details of regex. I will write a better one when I get connected tomorrow.
 
 Not good enought, I haven't considered the negative number problem. I will take care of that tomorrow morning. I have to go to sleep now. :)
-
