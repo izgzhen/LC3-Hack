@@ -27,8 +27,4 @@ def ZEX(integer, length):
 		return binary
 
 def isOpcode(op):
-	if op in opcode or op in popcode:
-		return True
-	if re.match(t_OP_BR, op):
-		return True
-	return False
+	return op in opcode or op in popcode or op in trap_vectors

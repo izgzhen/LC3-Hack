@@ -15,10 +15,10 @@ t_OP_LD = 'LD'
 t_OP_LDI = 'LDI'
 t_OP_LEA = 'LEA'
 t_OP_RTI = 'RTI'
+t_POP_FILL = '.FILL'
 
 t_OP_BR  = r'BRn?z?p?'
 t_ignore = ' ,\t'
-t_P_OP   = r'\.[A-Za-z][A-Za-z_0-9]+'
 
 def t_REG(t):
 	r'[rR][0-7]'

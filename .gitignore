@@ -1,3 +1,6 @@
 .DS_Store
 try*
 *.pyc
+*.out
+parsetab.py
+

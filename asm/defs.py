@@ -19,6 +19,7 @@ tokens = (
 	'N_HEX',
 	'N_DECIMAL',
 	'P_OP',
+	'POP_FILL'
 	)
 
 opcode = {
@@ -38,4 +39,17 @@ opcode = {
 	'RTI' 	: '1000'
 }
 
-popcode = {}
+trap_vectors = {
+	'GETC'	: 'x20',
+	'OUT'	: 'x21',
+	'PUTS'	: 'x22',
+	'IN'	: 'x23',
+	'PUTSP'	: 'x24',
+	'HALT'	: 'x25'
+}
+
+popcode = {
+	'.FILL',
+	'.STRINGZ',
+	'.BLKW'
+}

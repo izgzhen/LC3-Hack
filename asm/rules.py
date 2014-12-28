@@ -1,8 +1,8 @@
 from tools import *
 from defs import *
 
-def p_P_OP_inst(t):
-	'''inst : P_OP HEX'''
+def p_POP_FILL(t):
+	'''inst : POP_FILL VALUE'''
 	t[0] = ZEX(t[2], 16)
 
 def p_OP_ADD(t):
@@ -58,17 +58,10 @@ def p_OP_LDx(t):
 			| OP_LEA REG VALUE'''
 	t[0] = opcode[t[1]] + t[2] + SEX(t[3], 9)
 
-# def p_OP_LDI(t):
-# 	'''inst : OP_LDI REG VALUE'''
-# 	t[0] = opcode['LDI'] + t[2] + SEX(t[3], 9)
-
-# def p_OP_LEA(t):
-# 	'''inst : OP_LEA REG '''
-# 	t[0] = opcode['LEA'] + 
-
 def p_OP_RTI(t):
 	'''inst : OP_RTI'''
 	t[0] = opcode['RTI'] + '000000000000'
+
 
 
 def p_VALUE(t):
@@ -78,17 +71,13 @@ def p_VALUE(t):
 			 | N_HEX'''
 	t[0] = t[1]
 
-def p_IMM5(t):
-	'''IMM5 : VALUE'''
-	t[0] = ZEX(t[1], 5)
-
 def p_RRR(t):
 	'''RRR : REG REG REG'''
 	t[0] = t[1] + t[2] + '000' + t[3]
 
 def p_RRI(t):
-	'''RRI : REG REG IMM5'''
-	t[0] = t[1] + t[2] + '1' + t[3]
+	'''RRI : REG REG VALUE'''
+	t[0] = t[1] + t[2] + '1' + ZEX(t[3], 5)
 
 def p_error(t):
     print("Syntax error at '%s'" % t.value)
