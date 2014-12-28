@@ -44,3 +44,10 @@ I found the parsing seems being filled with redundent code ... you should make i
 I have written some regex for hex, bin, dec in 'transformer.py', But I still don't know the details of regex. I will write a better one when I get connected tomorrow.
 
 Not good enought, I haven't considered the negative number problem. I will take care of that tomorrow morning. I have to go to sleep now. :)
+
+# Dev Note 5:
+Rewrite the whole assembler:
+
+1. Use lexer and regex to parse & build symbol table
+2. Use symbol table to facilitate the pass 2nd.
+3. Maybe you can reuse the `Number` class in assembler?

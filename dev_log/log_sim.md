@@ -114,3 +114,14 @@ I have rewritten the whole simulator.
 The mistake in the previous versions is the abstraction level. You should not simulator anything below the ISA level. So the "bus" and "wires" are stupid decisions.
 
 Current version, v0.31, would be much better, with proper abstraction level and a powerful data class `Number`
+
+# Dev Note 8
+The schedule before Sunday:
+
+1. I/O mapping
+2. All instructions
+3. Error handling mechanism
+4. breakpoints, dumping, simple disassemblying
+5. Version 1.0 test cases
+
+As long as you finish them, simulator 1.0 is done.
