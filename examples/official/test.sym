@@ -1,0 +1,17 @@
+// Symbol table
+// Scope level 0:
+//	Symbol Name       Page Address
+//	----------------  ------------
+//	ILP               3003
+//	JLP               3009
+//	END               3013
+//	LOOP              3023
+//	NEXTIF            302B
+//	LOOPCK            3032
+//	USTED             3038
+//	STED              3039
+//	ANUM              303A
+//	BNUM              303B
+//	ALIMIT            303C
+//	BLIMIT            303D
+

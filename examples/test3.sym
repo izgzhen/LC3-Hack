@@ -1,0 +1,25 @@
+// Symbol table
+// Scope level 0:
+//	Symbol Name       Page Address
+//	----------------  ------------
+//	NEXT_USER         300A
+//	READ_USER         300B
+//	CHECK_NAME        300E
+//	READ_PWD          3019
+//	CHECK_PWD         301B
+//	FAILED_AUTH       3026
+//	PASSED_AUTH       3029
+//	READSTR           302E
+//	LOOP              3032
+//	ENDREAD           3039
+//	SAVER0            303F
+//	SAVER2            3040
+//	SAVER7            3041
+//	USERS             3042
+//	LOGIN_PRO         3043
+//	PWD_PRO           304F
+//	FAILED_PROMPT     305B
+//	PASSED_PROMPT     3087
+//	NAME              30AA
+//	PWD               30B4
+
