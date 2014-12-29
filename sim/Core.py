@@ -3,7 +3,7 @@ import Tools
 from Number import Number
 
 class CPU(object):
-	def __init__(self, mem):
+	def __init__(self, poll, output, debug, info):
 		self.wordLength = 16
 		self.addressibility = 16
 		self.gRegNum = 8
@@ -11,6 +11,9 @@ class CPU(object):
 		self.IR = Number(self.wordLength)
 		self.PC = Number(self.addressibility)
 		self.PSR = Number(self.wordLength)
+
+		self.debug = debug
+		self.info = info
 
 		self.SSP = Number(self.wordLength, 'b0011000000000000')	# Stack Bottom
 		self.USP = Number(self.wordLength, 'b1111111000000000')	# Stack Bottom
@@ -23,8 +26,9 @@ class CPU(object):
 		# address of special memory mapped locations
 		self.MCR  = Number(16, 'b1111111111111110')
 
-		self.writeMem = mem.write
-		self.readMem = mem.read
+		self.mem = Memory(self.interrupt, poll, output)
+		self.writeMem = self.mem.write
+		self.readMem = self.mem.read
 
 		self.getOperands = {
 			'ADDr' : ['R4-7', 'R7-10', 'R13-16'],
@@ -86,21 +90,21 @@ class CPU(object):
 			elif instruction.data[10] == '1':
 				return 'ADDimm'
 			else:
-				raise StandardError("[CPU]: Error -- Wrong ADD instruction format")
+				raise StandardError("Error -- Wrong ADD instruction format")
 		if opcode == '0101':
 			if instruction.data[10:13] == '000':
 				return 'ANDr'
 			elif instruction.data[10] == '1':
 				return 'ANDimm'
 			else:
-				raise StandardError("[CPU]: Error -- Wrong AND instruction format")
+				raise StandardError("Error -- Wrong AND instruction format")
 		if opcode == '0100':
 			if instruction.data[4] == '1':
 				return 'JSR'
 			elif instruction.data[4:7] == '000':
 				return 'JSRR'
 			else:
-				raise StandardError("[CPU]: Error -- Wrong AND instruction format")
+				raise StandardError("Error -- Wrong AND instruction format")
 		else:
 			return singleModeOpcode[opcode]
 
@@ -109,12 +113,16 @@ class CPU(object):
 		self.PC = self.PC.ADD(Number(self.wordLength, 1))
 		opcode = self.getOpcode(self.IR)
 
-		# print '[CPU]: IR', self.IR.bin()
-		if opcode:
+		MCR = self.readMem(self.MCR)
+		if MCR.data[0] == '0':	# RUN Latch is cleared
+			return 0
+		elif opcode:
 			operands = self.match(self.getOperands[opcode], self.IR)
 			apply(self.__getattribute__(opcode), operands)
+			return 1
 		else:
-			print "[CPU]: Error: Invalid Opcode"
+			self.info("Error: Invalid Opcode")
+			return 0
 
 	def setCC(self, index):
 		PSR_left = self.PSR.bin()[:-3]
@@ -134,93 +142,92 @@ class CPU(object):
 # ----------------------- ISA -----------------------
 	def LD(self, DR, offset):
 		SRCaddr = self.PC.ADD(offset)
-		print "[CPU]: LD", 'R' + str(DR), "<-", 'mem(' + SRCaddr.hex() + ')'
+		self.debug('LD R' + str(DR)+ ' <- mem(' + SRCaddr.hex() + ')')
 		self.gRegs[DR] = self.readMem(SRCaddr)
 		self.setCC(DR)
 
 	def BR(self, nzp, offset):
 		if Tools.match(self.getCC(), nzp):
 			self.PC = self.PC.ADD(offset)
-			print "[CPU]: BR", "offset(" + str(offset.intCom()) + ")"
+			self.debug("BR offset(" + str(offset.intCom()) + ")")
 		else:
-			print "[CPU]: BR -- 'not match'"
+			self.debug("BR -- 'not match'")
 
 	def ST(self, SR, offset):
 		DESTaddr = self.PC.ADD(offset)
-		print "[CPU]: ST", 'R' + str(SR), "->", 'mem(' + DESTaddr.hex() + ')'
+		self.debug('ST R' + str(SR) + ' -> mem(' + DESTaddr.hex() + ')')
 		self.writeMem(DESTaddr, self.gRegs[SR])
 
 	def ADDr(self, DR, SR1, SR2):
-		print "[CPU]: ADDr", 'R' + str(DR), "<-", 'R' + str(SR1), "+", 'R' + str(SR2)
+		self.debug('ADDr R' + str(DR) + ' <- R' + str(SR1) + ' + R' + str(SR2))
 		self.gRegs[DR] = self.gRegs[SR1].ADD(self.gRegs[SR2])
 		self.setCC(DR)
 
 	def ADDimm(self, DR, SR, Simm):
-		print "[CPU]: ADDimm", 'R' + str(DR), "<-", 'R' + str(SR), "+", 'Imm(' + str(Tools.intCom(Simm.data)) + ')'
+		self.debug('ADDimm R' + str(DR) + ' <- R' + str(SR) + ' + Imm(' + str(Tools.intCom(Simm.data)) + ')')
 		self.gRegs[DR] = self.gRegs[SR].ADD(Simm)
 		self.setCC(DR)
 
 	def ANDr(self, DR, SR1, SR2):
-		print "[CPU]: ANDr", 'R' + str(DR), "<-", 'R' + str(SR1), "&", 'R' + str(SR2)
+		self.debug('ANDr R' + str(DR) + ' <- R' + str(SR1) + ' & R' + str(SR2))
 		self.gRegs[DR] = self.gRegs[SR1].AND(self.gRegs[SR2])
 		self.setCC(DR)
 
 	def ANDimm(self, DR, SR, Simm):
-		print "[CPU]: ANDimm", 'R' + str(DR), "<-", 'R' + str(SR), "&", 'Imm(' + str(Tools.intCom(Simm.data)) + ')'
+		self.debug('ANDimm R' + str(DR) + ' <- R' + str(SR) + ' & Imm(' + str(Tools.intCom(Simm.data)) + ')')
 		self.gRegs[DR] = self.gRegs[SR].AND(Simm)
 		self.setCC(DR)
 
 	def NOT(self, DR, SR):
-		print "[CPU]: NOT", 'R' + str(DR), "<-", '! R' + str(SR)
+		self.debug('NOT R' + str(DR) + ' <- ! R' + str(SR))
 		self.gRegs[DR] = self.gRegs[SR].NOT()
 		self.setCC(DR)
 
 	def JMP(self, BR):
-		print "[CPU]: JMP", 'PC <-', 'R' + str(BR)
+		self.debug('JMP PC <- R' + str(BR))
 		self.PC = self.gRegs[BR]
 
 	def JSR(self, offset):
 		self.gRegs[7] = self.PC
-		DESTaddr = self.PC.ADD(offset)
-		self.PC = self.readMem(DESTaddr)
-		print '[CPU]: JSR', 'R7 <- PC, PC <-',  'mem(' + DESTaddr.hex() + ')'
+		self.PC = self.PC.ADD(offset)
+		self.debug('JSR R7 <- PC, PC <- ' + self.PC.hex())
 
 	def JSRR(self, BR):
 		self.gRegs[7] = self.PC
 		self.PC = self.gRegs[BR]
-		print '[CPU]: JSRR', 'R7 <- PC, PC <-', 'R' + str(BR)
+		self.debug('JSRR R7 <- PC, PC <- R' + str(BR))
 
 	def LDI(self, DR, offset):
 		addr = self.PC.ADD(offset)
 		self.gRegs[DR] = self.readMem(self.readMem(addr))
-		print '[CPU]: LDI', 'R' + str(DR), '<- mem(mem(' + addr.hex() + '))'
+		self.debug('LDI R' + str(DR) + ' <- mem(mem(' + addr.hex() + '))')
 		self.setCC(DR)
 
 	def STI(self, SR, offset):
 		addr = self.PC.ADD(offset)
-		self.writeMem(addr, self.gRegs[SR])
-		print '[CPU]: LDI', 'R' + str(SR), '-> mem(mem(' + addr.hex() + '))'
+		self.writeMem(self.readMem(addr), self.gRegs[SR])
+		self.debug('STI R' + str(SR) + ' -> mem(mem(' + addr.hex() + '))')
 
 	def LDR(self, DR, BR, offset):
 		addr = self.gRegs[BR].ADD(offset)
 		self.gRegs[DR] = self.readMem(addr)
 		self.setCC(DR)
-		print '[CPU]: LDR', 'R' + str(DR), '<- mem(' + 'R' + str(BR) + ' + ' + offset + ')'
+		self.debug('LDR R' + str(DR) + ' <- mem(' + 'R' + str(BR) + ' + ' + str(offset.int()) + ')')
 
 	def STR(self, SR, BR, offset):
 		addr = self.gRegs[BR].ADD(offset)
 		self.writeMem(addr, self.gRegs[SR])
-		print '[CPU]: STR', 'R' + str(DR), '-> mem(' + 'R' + str(BR) + ' + ' + offset + ')'
+		self.debug('STR R' + str(SR) + ' -> mem(' + 'R' + str(BR) + ' + ' + str(offset.int()) + ')')
 
 	def LEA(self, DR, offset):
 		self.gRegs[DR] = self.PC.ADD(offset)
 		self.setCC(DR)
-		print '[CPU]: LEA', 'R' + str(DR), '<- PC +', str(offset.intCom())
+		self.debug('LEA R' + str(DR) + ' <- PC + ' + str(offset.intCom()))
 
 	def TRAP(self, vector):
 		self.gRegs[7] = self.PC		# R7 <- PC
 		self.PC = self.readMem(Number(16, 'b00000000' + vector))	# PC <- mem[ZEX(vector)]
-		print '[CPU]: TRAP', 'V' + vector
+		self.debug('TRAP V' + vector)
 
 	def RTI(self):
 		# Return From interrupt
@@ -231,7 +238,7 @@ class CPU(object):
 			self.PSR = self.readMem(SSP.ADD(Number(self.wordLength, 1)))
 			self.gRegs[6] = SSP.ADD(Number(self.wordLength, 2))
 		else:
-			raise Exception("[CPU]: Exception: RTI not privileged")
+			raise Exception("Exception: RTI not privileged")
 
 	def interrupt(PL, vector):
 		assert(len(vector) == 8)
@@ -247,31 +254,15 @@ class CPU(object):
 
 
 class Memory(object):
-	def __init__(self):
+	def __init__(self, interrupt, poll, output):
 		self.wordLength = 16
 		self.addressibility = pow(2, 16)
 		self.data = [ Number(self.wordLength) ] * self.addressibility
-
-	def read(self, addr):
-		if type(addr) == type(1):
-			# print "[Memory]: Read at", addr % self.addressibility
-			return self.data[addr % self.addressibility]
-		else:
-			# print "[Memory]: Read at", addr.toSize(self.wordLength).int()
-			return self.data[addr.toSize(self.wordLength).int()]
-
-	def write(self, addr, value):
-		if type(addr) == type(1): # Integer Type
-			# print "[Memory]: Write at", addr % self.addressibility
-			self.data[addr % self.addressibility] = value
-		else:	# Number Class Type
-			# print "[Memory]: Write at", addr.toSize(self.wordLength).int()
-			self.data[addr.toSize(self.wordLength).int()] = value
-
-class IO(object):
-	def __init__(self, mem, interrupt):
-		self.writeMem = mem.write
-		self.readMem = mem.read
+		self.KBSR = int("FE00", 16);
+		self.KBDR = int("FE02", 16);
+		self.DSR = int("FE04", 16);
+		self.DDR = int("FE06", 16);
+		self.io = IO(poll, output)
 		self.interrupt = interrupt
 
 		self.ports = {
@@ -281,23 +272,59 @@ class IO(object):
 			'DDR'	: Number(16, 'b1111111000000110')
 		}
 
-		self.writeMem(self.ports['KBSR'], Number(16, 'b1000000000000000'))
-		self.writeMem(self.ports['DSR'],  Number(16, 'b1000000000000000'))
+		self.write(self.ports['KBSR'], Number(16, 'b0000000000000000'))
+		self.write(self.ports['DSR'],  Number(16, 'b1000000000000000'))
 
-	def input(self, ch):
-		# print "inputted:",ch
-		KBSR = self.readMem(self.ports['KBSR'])
-		interruptEnabled = (KBSR.data[1] == '1')
-		if KBSR.data[0] == '0':
-			self.writeMem(self.ports['KBDR'], Number(16, Tools.chToNum(ch)))
-			self.writeMem(self.ports['KBSR'], Number(16, 'b1' + KBSR.data[1:]))
-			if interruptEnabled:
-				self.interrupt('001', '01000000') # Priority: 1, vector: x0180
+	def read(self, addr):
+		if type(addr) != type(1):
+			addr = addr.toSize(self.wordLength).int()
 
-	def output(self):
-		DSR = self.readMem(self.ports['DSR'])
-		if DSR.data[0] == '0':
-			self.writeMem(self.ports['DSR'], Number(16, 'b1' + DSR.data[1:]))
-			return chr(self.readMem(self.ports['DDR']).int())
+		if addr == self.KBSR:
+			KBSR = self.data[self.KBSR].data;
+			if KBSR[0] == '0':
+				self.data[self.KBDR] = self.io.get()
+				self.data[self.KBSR] = Number(16, 'b1' + KBSR[1:])	# Set Ready Bit
+			return self.data[self.KBSR]
+		elif addr == self.KBDR:
+			KBSR = self.data[self.KBSR].data;
+			self.data[self.KBSR] = Number(16, 'b0' + KBSR[1:])		# Clear Ready Bit
+			return self.data[self.KBDR]
 		else:
-			return 0
+			return self.data[addr % self.addressibility]
+
+	def write(self, addr, value):
+		if type(addr) != type(1):
+			addr = addr.toSize(self.wordLength).int()
+
+		if addr == self.DSR:
+			DSR = self.data[self.DSR].data;
+			if DSR[0] == '0':
+				self.data[self.DSR] = Number(16, 'b1' + DSR[1:])	# Set Ready Bit
+			return self.data[self.DSR]
+		elif addr == self.DDR:
+			DSR = self.data[self.DSR].data
+			if DSR[0] == '1':
+				self.io.put(value)
+		else:
+			self.data[addr % self.addressibility] = value
+
+class IO(object):
+	def __init__(self, poll, output):
+		self.poll = poll
+		self.output = output
+		self.buf = ""
+
+	def input(self, string):
+		self.buf += string
+
+	def get(self):
+		if len(self.buf):
+			result = Number(16, ord(self.buf[0]))
+			self.buf = self.buf[1:]
+			return result
+		else:
+			self.buf = self.poll()
+			return self.get()
+
+	def put(self, data):
+		self.output(chr(int(data.data[8:], 2)))

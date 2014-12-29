@@ -1,0 +1,14 @@
+// Symbol table
+// Scope level 0:
+//	Symbol Name       Page Address
+//	----------------  ------------
+//	OS_MCR            0202
+//	TRAP_GETC         0204
+//	TRAP_OUT          0208
+//	OUT_WAIT          0209
+//	Save1             020E
+//	OS_KBSR           020F
+//	OS_KBDR           0210
+//	OS_DSR            0211
+//	OS_DDR            0212
+
