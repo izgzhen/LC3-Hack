@@ -2,7 +2,28 @@ from Number import Number
 import Tools
 import Core
 import sys
+import thread
+import time
 
+def read_key(cb):
+    import termios
+    import sys
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    new = termios.tcgetattr(fd)
+    new[3] &= ~(termios.ICANON | termios.ECHO) # c_lflags
+    c = None
+    try:
+        termios.tcsetattr(fd, termios.TCSANOW, new)
+        c = sys.stdin.read(1)
+        cb(c)
+    finally:
+        termios.tcsetattr(fd, termios.TCSANOW, old)
+    return c
+
+def input_thread(cb):
+    read_key(cb)
+    thread.interrupt_main()
 
 class Computer(object):
 	def __init__(self, doDebug):
@@ -24,6 +45,10 @@ class Computer(object):
 
 	def run(self):
 		while 1:
+			if self.cpu.ch != -1:
+				self.cpu.interrupt('011', '10000000')
+				self._continue(False)
+
 			cmd = raw_input("> ")
 			# Step over
 			if cmd == "step" or len(cmd) == 0:
@@ -42,9 +67,8 @@ class Computer(object):
 			elif cmd == 'flush':
 				self.flush()
 			elif cmd == 'continue':
-				while 1:
-					if not self.cpu.step():
-						self.exit()
+				# Interrupt
+				self._continue(False)
 			elif cmd == 'quit':
 				exit()
 
@@ -72,8 +96,24 @@ class Computer(object):
 		print "Halting"
 		exit()
 
+	def getch(self, ch):
+		self.cpu.ch = ch
+
+	def _continue(self, interrupted):
+	    if interrupted:
+	        return
+	    try:
+			thread.start_new_thread(input_thread, tuple([self.getch]))
+			while True:
+				if not self.cpu.step():
+					self.exit()
+				self.flush()
+				time.sleep(0.05)
+	    except KeyboardInterrupt:
+	        self._continue(True)
+
 print "Welcome to LC3-Sim v0.9 by izgzhen"
-LCX = Computer(doDebug = True)
+LCX = Computer(doDebug = False)
 
 # Loading Operating System
 LCX.load("OS/trap_vector.src")

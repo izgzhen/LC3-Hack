@@ -14,6 +14,8 @@ class CPU(object):
 
 		self.debug = debug
 		self.info = info
+		
+		self.ch = -1
 
 		self.SSP = Number(self.wordLength, 'b0011000000000000')	# Stack Bottom
 		self.USP = Number(self.wordLength, 'b1111111000000000')	# Stack Bottom
@@ -232,7 +234,7 @@ class CPU(object):
 	def RTI(self):
 		# Return From interrupt
 		privileged = (self.PSR.data[0] == '0')
-		if priliveged:
+		if privileged:
 			SSP = self.gRegs[6]
 			self.PC = self.readMem(SSP)
 			self.PSR = self.readMem(SSP.ADD(Number(self.wordLength, 1)))
@@ -240,8 +242,11 @@ class CPU(object):
 		else:
 			raise Exception("Exception: RTI not privileged")
 
-	def interrupt(PL, vector):
+	def interrupt(self, PL, vector):
 		assert(len(vector) == 8)
+		if int(self.PSR.data[5:8], 2) > int(PL, 2):
+			self.debug("[CPU]: interrupt Rejected")
+			return 	# Reject the interrupt
 		addr = Number(16, 'b00000001' + vector)
 		SSP = self.gRegs[6]
 		self.writeMem(SSP.MINUS(Number(self.wordLength, 1)), self.PSR)
@@ -249,6 +254,8 @@ class CPU(object):
 		self.gRegs[6] = SSP.MINUS(Number(self.wordLength, 2))
 		self.PC = self.readMem(addr)
 		self.PSR = Number(16, 'b00000' + PL + '00000000')
+		self.debug("[CPU]: interrupt accepted")
+		self.ch = -1
 
 # ----------------------- ISA -----------------------
 

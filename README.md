@@ -11,4 +11,4 @@ A suite developed in Python for LC-3 (Little Computer 3)
 * `dev_log`: Development log
 * `examples`: some LC3 code examples
 
-#### Current Version: v0.31
+#### Current Version: v1.0

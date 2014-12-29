@@ -9,9 +9,14 @@
 PRINT		LD 			R0, SET
 			STI 		R0, KBSR 	; Set Bit
 
+			LD 			R0, WORD
+LOOP		OUT
+			BR			LOOP
+
 SET 		.FILL 		x4000
 KBINT		.FILL		x0180
 KBSR    	.FILL 		xFE00
 IRS			.FILL 		x2000
 SSP			.FILL 		x3000
+WORD		.FILL 		x0061	;'a'
 			.END
