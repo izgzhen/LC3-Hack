@@ -1,17 +1,27 @@
 import Tools
-import ISA
+# import ISA
 from Number import Number
 
 class CPU(object):
 	def __init__(self, mem):
 		self.wordLength = 16
 		self.addressibility = 16
-
 		self.gRegNum = 8
 		self.gRegs = [ Number(self.wordLength) ] * self.gRegNum
-		self.cRegs = Number(3, 'b000')
 		self.IR = Number(self.wordLength)
 		self.PC = Number(self.addressibility)
+		self.PSR = Number(self.wordLength)
+
+		self.SSP = Number(self.wordLength, 'b0011000000000000')	# Stack Bottom
+		self.USP = Number(self.wordLength, 'b1111111000000000')	# Stack Bottom
+
+		# Program State Register, inluding Pr, PL, CC
+		# When loaded in the user program and running, the Pr will be set;
+		# When a device issues a interrupt, the Pr will change into priliveged mode
+		# Write to Registers will incur changes to CC
+
+		# address of special memory mapped locations
+		self.MCR  = Number(16, 'b1111111111111110')
 
 		self.writeMem = mem.write
 		self.readMem = mem.read
@@ -30,8 +40,14 @@ class CPU(object):
 			'JSRR' : ['R7-10'],
 			'LDI' : ['R4-7', 'O7-16'],
 			'LDR' : ['R4-7','R7-10', 'O10-16'],
-			'LEA' : ['R4-7', 'O7-16']
+			'LEA' : ['R4-7', 'O7-16'],
+			'STI' : ['R4-7', 'O7-16'],
+			'STR' : ['R4-7','R7-10', 'O10-16'],
+			'TRAP' : ['S8-16'],
+			'RTI' : []
 		}
+
+
 
 	def match(self, pattern, inst):
 		rulesMatch = {
@@ -56,7 +72,11 @@ class CPU(object):
 			'1100' : 'JMP',
 			'1010' : 'LDI',
 			'0110' : 'LDR',
-			'1110' : 'LEA'
+			'1110' : 'LEA',
+			'1011' : 'STI',
+			'0111' : 'STR',
+			'1111' : 'TRAP',
+			'1000' : 'RTI'
 		}
 
 		opcode = instruction.data[0:4]
@@ -97,12 +117,16 @@ class CPU(object):
 			print "[CPU]: Error: Invalid Opcode"
 
 	def setCC(self, index):
+		PSR_left = self.PSR.bin()[:-3]
 		if self.readRegCom(index) > 0:
-			self.cRegs = Number(3, 'b001')
+			self.PSR = Number(16, PSR_left + '001')
 		elif self.readRegCom(index) == 0:
-			self.cRegs = Number(3, 'b010')
+			self.PSR = Number(16, PSR_left + '010')
 		else:
-			self.cRegs = Number(3, 'b100')
+			self.PSR = Number(16, PSR_left + '100')
+
+	def getCC(self):
+		return self.PSR.bin()[-3:]
 
 	def readRegCom(self, index):
 		return Tools.intCom(self.gRegs[index].bin()[1:])
@@ -115,7 +139,7 @@ class CPU(object):
 		self.setCC(DR)
 
 	def BR(self, nzp, offset):
-		if Tools.match(self.cRegs.data, nzp):
+		if Tools.match(self.getCC(), nzp):
 			self.PC = self.PC.ADD(offset)
 			print "[CPU]: BR", "offset(" + str(offset.intCom()) + ")"
 		else:
@@ -172,42 +196,108 @@ class CPU(object):
 		print '[CPU]: LDI', 'R' + str(DR), '<- mem(mem(' + addr.hex() + '))'
 		self.setCC(DR)
 
+	def STI(self, SR, offset):
+		addr = self.PC.ADD(offset)
+		self.writeMem(addr, self.gRegs[SR])
+		print '[CPU]: LDI', 'R' + str(SR), '-> mem(mem(' + addr.hex() + '))'
+
 	def LDR(self, DR, BR, offset):
 		addr = self.gRegs[BR].ADD(offset)
 		self.gRegs[DR] = self.readMem(addr)
 		self.setCC(DR)
 		print '[CPU]: LDR', 'R' + str(DR), '<- mem(' + 'R' + str(BR) + ' + ' + offset + ')'
 
+	def STR(self, SR, BR, offset):
+		addr = self.gRegs[BR].ADD(offset)
+		self.writeMem(addr, self.gRegs[SR])
+		print '[CPU]: STR', 'R' + str(DR), '-> mem(' + 'R' + str(BR) + ' + ' + offset + ')'
+
 	def LEA(self, DR, offset):
 		self.gRegs[DR] = self.PC.ADD(offset)
 		self.setCC(DR)
 		print '[CPU]: LEA', 'R' + str(DR), '<- PC +', str(offset.intCom())
 
-	# def RTI(self): # RTI is still not fully understood
+	def TRAP(self, vector):
+		self.gRegs[7] = self.PC		# R7 <- PC
+		self.PC = self.readMem(Number(16, 'b00000000' + vector))	# PC <- mem[ZEX(vector)]
+		print '[CPU]: TRAP', 'V' + vector
+
+	def RTI(self):
+		# Return From interrupt
+		privileged = (self.PSR.data[0] == '0')
+		if priliveged:
+			SSP = self.gRegs[6]
+			self.PC = self.readMem(SSP)
+			self.PSR = self.readMem(SSP.ADD(Number(self.wordLength, 1)))
+			self.gRegs[6] = SSP.ADD(Number(self.wordLength, 2))
+		else:
+			raise Exception("[CPU]: Exception: RTI not privileged")
+
+	def interrupt(PL, vector):
+		assert(len(vector) == 8)
+		addr = Number(16, 'b00000001' + vector)
+		SSP = self.gRegs[6]
+		self.writeMem(SSP.MINUS(Number(self.wordLength, 1)), self.PSR)
+		self.writeMem(SSP.MINUS(Number(self.wordLength, 2)), self.PC)
+		self.gRegs[6] = SSP.MINUS(Number(self.wordLength, 2))
+		self.PC = self.readMem(addr)
+		self.PSR = Number(16, 'b00000' + PL + '00000000')
 
 # ----------------------- ISA -----------------------
-
 
 
 class Memory(object):
 	def __init__(self):
 		self.wordLength = 16
 		self.addressibility = pow(2, 16)
-
 		self.data = [ Number(self.wordLength) ] * self.addressibility
 
 	def read(self, addr):
 		if type(addr) == type(1):
-			print "[Memory]: Read at", addr % self.addressibility
+			# print "[Memory]: Read at", addr % self.addressibility
 			return self.data[addr % self.addressibility]
 		else:
-			print "[Memory]: Read at", addr.toSize(self.wordLength).int()
+			# print "[Memory]: Read at", addr.toSize(self.wordLength).int()
 			return self.data[addr.toSize(self.wordLength).int()]
 
 	def write(self, addr, value):
-		if type(addr) == type(1):
-			print "[Memory]: Write at", addr % self.addressibility
+		if type(addr) == type(1): # Integer Type
+			# print "[Memory]: Write at", addr % self.addressibility
 			self.data[addr % self.addressibility] = value
-		else:
-			print "[Memory]: Write at", addr.toSize(self.wordLength).int()
+		else:	# Number Class Type
+			# print "[Memory]: Write at", addr.toSize(self.wordLength).int()
 			self.data[addr.toSize(self.wordLength).int()] = value
+
+class IO(object):
+	def __init__(self, mem, interrupt):
+		self.writeMem = mem.write
+		self.readMem = mem.read
+		self.interrupt = interrupt
+
+		self.ports = {
+			'KBSR'	: Number(16, 'b1111111000000000'),
+			'KBDR'	: Number(16, 'b1111111000000010'),
+			'DSR'	: Number(16, 'b1111111000000100'),
+			'DDR'	: Number(16, 'b1111111000000110')
+		}
+
+		self.writeMem(self.ports['KBSR'], Number(16, 'b1000000000000000'))
+		self.writeMem(self.ports['DSR'],  Number(16, 'b1000000000000000'))
+
+	def input(self, ch):
+		# print "inputted:",ch
+		KBSR = self.readMem(self.ports['KBSR'])
+		interruptEnabled = (KBSR.data[1] == '1')
+		if KBSR.data[0] == '0':
+			self.writeMem(self.ports['KBDR'], Number(16, Tools.chToNum(ch)))
+			self.writeMem(self.ports['KBSR'], Number(16, 'b1' + KBSR.data[1:]))
+			if interruptEnabled:
+				self.interrupt('001', '01000000') # Priority: 1, vector: x0180
+
+	def output(self):
+		DSR = self.readMem(self.ports['DSR'])
+		if DSR.data[0] == '0':
+			self.writeMem(self.ports['DSR'], Number(16, 'b1' + DSR.data[1:]))
+			return chr(self.readMem(self.ports['DDR']).int())
+		else:
+			return 0

@@ -19,7 +19,7 @@ class Number(object):
 			self.data = bin(int(value[1:]))[-self.size:]
 		else:
 			self.data = '0' # Default
-			print "[Number] Unknown value type : Number::__init__"
+			print "[Number] Unknown value type : Number::__init__", value
 
 		self.data = self.data.zfill(self.size)
 
@@ -44,6 +44,9 @@ class Number(object):
 
 	def ADD(self, operand):
 		return self.calculate(lambda x, y : x + y, operand)
+
+	def MINUS(self, operand):
+		return self.calculate(lambda x, y : x - y, operand)
 
 	def XOR(self, operand):
 		return self.calculate(lambda x, y : x ^ y, operand)

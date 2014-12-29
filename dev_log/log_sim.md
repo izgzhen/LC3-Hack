@@ -125,3 +125,6 @@ The schedule before Sunday:
 5. Version 1.0 test cases
 
 As long as you finish them, simulator 1.0 is done.
+
+# Dev Note 9
+Except for special error handling mechanism (a nice ISA error handler needs much work indeed), All above points are implemented while not fully tested. But let's call it v0.9, since all major funtionalities is there.

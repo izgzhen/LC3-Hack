@@ -46,3 +46,9 @@ def intCom(str):
 		return - (int(flip(str[1:]), 2) + 1)
 	else:
 		return int(str[1:], 2)
+
+def chToNum(ch):
+	# transform char to ASCII byte in 16 bits
+	binary = bin(ord(ch))[2:]
+	binary = 'b' + '0' * (16 - len(binary)) + binary
+	return binary
